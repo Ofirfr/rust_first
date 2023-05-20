@@ -1,5 +1,5 @@
-const CIRCLE: char = 'O';
-const X: char = 'X';
+pub const CIRCLE: char = 'O';
+pub const X: char = 'X';
 const EMPTY: char = 'N';
 use std::io;
 use std::io::prelude::*;
@@ -18,75 +18,52 @@ impl Game {
         }
     }
 
-    pub fn player_vs_AI(&mut self) {
-        let AI = CIRCLE;
-        let player = X;
-        std::process::Command::new("clear").status().unwrap();
-        loop {
-            println!("Your Turn as {}", player);
-            self.print_board(' ');
-            loop {
-                println!("Please choose your row:");
-                let row = self.get_user_selection(3) - 1;
-                println!("Please choose your column:");
-                let column = self.get_user_selection(3) - 1;
-                let valid_step = self.step(player, row, column);
-                if valid_step {
-                    break;
-                } else {
-                    println!("This cube is already taken! Please choose another cube.")
-                }
-            }
-            // check if game over
-            let (is_over, maybe_winner) = self.is_game_over();
-            if is_over {
-                if maybe_winner == EMPTY {
-                    println!("Game Over! Draw!");
-                } else {
-                    print!("Game Over! {} is the winner!", maybe_winner);
-                }
-                break;
-            }
-            // let ai play
-
-            let (ai_row, ai_column) = self.find_best_move();
-            self.step(AI, ai_row, ai_column);
-            std::process::Command::new("clear").status().unwrap();
-            println!(
-                "The computer played on row: {}, and column: {}",
-                ai_row, ai_column
-            )
+    fn new_with_board(board: &mut [[char; 3]; 3], steps: u16) -> Game {
+        Game {
+            steps: steps,
+            board: *board,
         }
     }
 
-    pub fn player_vs_player(&mut self) {
-        // choose random player to start
-        let mut current_player = CIRCLE;
+    pub fn play(&mut self, play_vs_AI: bool, player_to_start: char) {
+        let mut current_player = player_to_start;
         loop {
             std::process::Command::new("clear").status().unwrap();
             println!("{} Turn", current_player);
             self.print_board(' ');
             // do a step
-            loop {
-                println!("Please choose your row:");
-                let row = self.get_user_selection(3) - 1;
-                println!("Please choose your column:");
-                let column = self.get_user_selection(3) - 1;
-                let valid_step = self.step(current_player, row, column);
-                if valid_step {
-                    break;
-                } else {
-                    println!("This cube is already taken! Please choose another cube.")
+            if play_vs_AI && current_player == CIRCLE {
+                let (ai_row, ai_column) = self.find_best_move();
+                self.step(current_player, ai_row, ai_column);
+                println!(
+                    "The computer played on row: {}, and column: {}",
+                    ai_row + 1,
+                    ai_column + 1
+                )
+            } else {
+                loop {
+                    println!("Please choose your row:");
+                    let row = self.get_user_selection(3) - 1;
+                    println!("Please choose your column:");
+                    let column = self.get_user_selection(3) - 1;
+                    let valid_step = self.step(current_player, row, column);
+                    if valid_step {
+                        break;
+                    } else {
+                        println!("This cube is already taken! Please choose another cube.")
+                    }
                 }
             }
             // check if game over
             let (is_over, maybe_winner) = self.is_game_over();
             if is_over {
+                std::process::Command::new("clear").status().unwrap();
                 if (maybe_winner == EMPTY) {
                     println!("Game Over! Draw!");
                 } else {
                     print!("Game Over! {} is the winner!", maybe_winner);
                 }
+                self.print_board(' ');
                 break;
             }
             // switch player turn
@@ -208,39 +185,72 @@ impl Game {
         }
     }
 
-    fn minimax(&self, depth: i32, player: char) -> i32 {
-        let (is_over, winner) = self.is_game_over();
-
-        // If the game has ended
+    pub fn evaluate(&self, board: &mut [[char; 3]; 3], steps: u16) -> i16 {
+        let eval_game = Game::new_with_board(board, steps);
+        let (is_over, winner) = eval_game.is_game_over();
         if is_over {
             match winner {
-                CIRCLE => return 1,
-                EMPTY => return 0,
-                _ => return -1,
+                CIRCLE => 10,
+                X => -10,
+                _ => 0,
+            }
+        } else {
+            0
+        }
+    }
+
+    pub fn is_moves_left(&self, board: &[[char; 3]; 3]) -> bool {
+        for row in 0..3 {
+            for col in 0..3 {
+                if board[row][col] == 'N' {
+                    return true;
+                }
             }
         }
+        false
+    }
 
-        // If this is a maximizer move
-        if player == 'O' {
+    pub fn minimax(&self, board: &mut [[char; 3]; 3], depth: u16, is_max: bool) -> i16 {
+        let score = self.evaluate(board, depth);
+
+        if score == 10 {
+            return score;
+        }
+
+        if score == -10 {
+            return score;
+        }
+
+        if !self.is_moves_left(board) {
+            return 0;
+        }
+
+        if is_max {
             let mut best = -1000;
-            for row in 0..3 {
-                for col in 0..3 {
-                    if self.board[row][col] == 'N' {
-                        let mut new_game = self.clone();
-                        new_game.board[row][col] = 'O';
-                        best = best.max(new_game.minimax(depth + 1, 'X'));
+
+            for i in 0..3 {
+                for j in 0..3 {
+                    if board[i][j] == EMPTY {
+                        board[i][j] = CIRCLE;
+
+                        best = std::cmp::max(best, self.minimax(board, depth + 1, !is_max));
+
+                        board[i][j] = EMPTY;
                     }
                 }
             }
             best
         } else {
             let mut best = 1000;
-            for row in 0..3 {
-                for col in 0..3 {
-                    if self.board[row][col] == 'N' {
-                        let mut new_game = self.clone();
-                        new_game.board[row][col] = 'X';
-                        best = best.min(new_game.minimax(depth + 1, 'O'));
+
+            for i in 0..3 {
+                for j in 0..3 {
+                    if board[i][j] == EMPTY {
+                        board[i][j] = X;
+
+                        best = std::cmp::min(best, self.minimax(board, depth + 1, !is_max));
+
+                        board[i][j] = EMPTY;
                     }
                 }
             }
@@ -248,28 +258,28 @@ impl Game {
         }
     }
 
-    // Function to find the best move for the AI player
     pub fn find_best_move(&self) -> (usize, usize) {
         let mut best_val = -1000;
-        let mut best_move = (0, 0);
+        let mut best_move = (usize::MAX, usize::MAX);
 
-        // Traverse all cells, evaluate minimax function for
-        // all empty cells. And return the cell with optimal value.
-        for row in 0..3 {
-            for col in 0..3 {
-                if self.board[row][col] == 'N' {
-                    let mut new_game = self.clone();
-                    new_game.board[row][col] = 'O';
-                    let move_val = new_game.minimax(0, 'X');
+        let mut board = self.board.clone();
+
+        for i in 0..3 {
+            for j in 0..3 {
+                if board[i][j] == EMPTY {
+                    board[i][j] = CIRCLE;
+
+                    let move_val = self.minimax(&mut board, 0, false);
+
+                    board[i][j] = EMPTY;
 
                     if move_val > best_val {
-                        best_move = (row, col);
+                        best_move = (i, j);
                         best_val = move_val;
                     }
                 }
             }
         }
-
         best_move
     }
 }

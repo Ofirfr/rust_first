@@ -1,6 +1,8 @@
 mod game;
 use game::Game;
+use game::CIRCLE;
+use game::X;
 fn main() {
     let mut game = Game::new();
-    game.player_vs_AI();
+    game.play(true, X);
 }
