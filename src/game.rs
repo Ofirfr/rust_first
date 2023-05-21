@@ -25,14 +25,14 @@ impl Game {
         }
     }
 
-    pub fn play(&mut self, play_vs_AI: bool, player_to_start: char) {
+    pub fn play(&mut self, play_vs_ai: bool, player_to_start: char) {
         let mut current_player = player_to_start;
         loop {
             std::process::Command::new("clear").status().unwrap();
             println!("{} Turn", current_player);
             self.print_board(' ');
             // do a step
-            if play_vs_AI && current_player == CIRCLE {
+            if play_vs_ai && current_player == CIRCLE {
                 let (ai_row, ai_column) = self.find_best_move();
                 self.step(current_player, ai_row, ai_column);
                 println!(
@@ -58,7 +58,7 @@ impl Game {
             let (is_over, maybe_winner) = self.is_game_over();
             if is_over {
                 std::process::Command::new("clear").status().unwrap();
-                if (maybe_winner == EMPTY) {
+                if maybe_winner == EMPTY {
                     println!("Game Over! Draw!");
                 } else {
                     print!("Game Over! {} is the winner!", maybe_winner);
